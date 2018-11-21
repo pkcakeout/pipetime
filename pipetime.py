@@ -5,6 +5,7 @@ import time
 from collections import OrderedDict
 
 import bokeh.plotting
+import bokeh.layouts
 import bokeh.io
 
 
@@ -33,17 +34,27 @@ class ClockReporter:
         init_len = len(history["timestamps"])
 
         def append_values(value_hist, new_values):
+            new_values = dict(new_values)
+            for k, values in value_hist.items():
+                if k in new_values:
+                    value = new_values[k]
+                    del new_values[k]
+                    values.append(value)
+                else:
+                    values.append(None)
+                yield (k, values)
             for k, value in new_values.items():
                 values = value_hist.get(k, [None] * init_len)
                 values.append(value)
                 yield (k, values)
 
+        print(timing_counts)
         history = {
             "timestamps": history["timestamps"] + [timestamp],
             "values": OrderedDict(
                 **dict(append_values(history["values"], timing_values))),
             "counts": OrderedDict(
-                **dict(append_values(history["counts"], timing_values))),
+                **dict(append_values(history["counts"], timing_counts))),
         }
 
         if len(history["timestamps"]) > 1:
@@ -60,14 +71,25 @@ class ClockReporter:
             timings_figure = bokeh.plotting.figure(
                 title="Timings", plot_width=800, plot_height=600)
             for i, (k, values) in enumerate(history["values"].items()):
+                none_count = sum(x is None for x in values)
                 timings_figure.line(
-                    history["timestamps"],
-                    values,
+                    history["timestamps"][none_count:],
+                    values[none_count:],
+                    legend=k,
+                    color=color_rotation[i % len(color_rotation)])
+
+            counts_figure = bokeh.plotting.figure(
+                title="Item count", plot_width=800, plot_height=600)
+            for i, (k, values) in enumerate(history["counts"].items()):
+                none_count = sum(x is None for x in values)
+                counts_figure.line(
+                    history["timestamps"][none_count:],
+                    values[none_count:],
                     legend=k,
                     color=color_rotation[i % len(color_rotation)])
 
             bokeh.io.save(
-                timings_figure,
+                bokeh.layouts.column(timings_figure, counts_figure),
                 filename=pathlib.Path(path) / "timings.html",
                 title="Timings")
 
