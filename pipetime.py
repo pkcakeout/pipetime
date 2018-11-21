@@ -3,7 +3,8 @@ import multiprocessing
 import queue
 import time
 
-import bokeh
+import bokeh.plotting
+import bokeh.io
 
 
 class TimeTrail:
@@ -20,11 +21,43 @@ class TimeTrail:
 
 class ClockReporter:
     @staticmethod
-    def create_plot(path, timing_values, timing_counts):
-        pass
+    def create_plot(history, path, timestamp, timing_values, timing_counts):
+        if not history:
+            history = {"timestamps": [], "values": {}, "counts": {}}
+
+        init_len = len(history["timestamps"])
+
+        def append_values(value_hist, new_values):
+            for k, value in new_values.items():
+                values = value_hist.get(k, [None] * init_len)
+                values.append(value)
+                yield (k, values)
+
+        history = {
+            "timestamps": history["timestamps"] + [timestamp],
+            "values": {**dict(append_values(history["values"], timing_values))},
+            "counts": {**dict(append_values(history["counts"], timing_values))},
+        }
+
+        if len(history["timestamps"]) > 1:
+            timings_figure = bokeh.plotting.figure(
+                title="Timings", plot_width=800, plot_height=600)
+            for k, values in history["values"].items():
+                timings_figure.multi_line(
+                    history["timestamps"], values, legend=k)
+
+            print("saving")
+            bokeh.io.save(
+                timings_figure,
+                filename=pathlib.Path(path) / "timings.html",
+                title="Timings")
+
+        return history
 
     @staticmethod
     def __process_handler(rqueue: multiprocessing.Queue, path):
+        history_data = None
+
         timing_values = {}
         timing_counts = {}
 
@@ -49,7 +82,8 @@ class ClockReporter:
                 # Cycle
                 if time.time() - plot_timeout_start > plot_interval:
                     plot_timeout_start = time.time()
-                    ClockReporter.create_plot(path, timing_values, timing_counts)
+                    history_data = ClockReporter.create_plot(
+                        history_data, path, time.time(), timing_values, timing_counts)
                     timing_counts = {k: 0 for k in timing_counts.keys()}
             elif cmd == "exit":
                 break
