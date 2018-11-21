@@ -2,6 +2,7 @@ import pathlib
 import multiprocessing
 import queue
 import time
+from collections import OrderedDict
 
 import bokeh.plotting
 import bokeh.io
@@ -23,7 +24,11 @@ class ClockReporter:
     @staticmethod
     def create_plot(history, path, timestamp, timing_values, timing_counts):
         if not history:
-            history = {"timestamps": [], "values": {}, "counts": {}}
+            history = {
+                "timestamps": [],
+                "values": OrderedDict(),
+                "counts": OrderedDict()
+            }
 
         init_len = len(history["timestamps"])
 
@@ -35,18 +40,32 @@ class ClockReporter:
 
         history = {
             "timestamps": history["timestamps"] + [timestamp],
-            "values": {**dict(append_values(history["values"], timing_values))},
-            "counts": {**dict(append_values(history["counts"], timing_values))},
+            "values": OrderedDict(
+                **dict(append_values(history["values"], timing_values))),
+            "counts": OrderedDict(
+                **dict(append_values(history["counts"], timing_values))),
         }
 
         if len(history["timestamps"]) > 1:
+            color_rotation = (
+                "#000000",
+                "#FF0000",
+                "#00FF00",
+                "#0000FF",
+                "#FF00FF",
+                "#00FFFF",
+                "#FFFF00",
+            )
+
             timings_figure = bokeh.plotting.figure(
                 title="Timings", plot_width=800, plot_height=600)
-            for k, values in history["values"].items():
-                timings_figure.multi_line(
-                    history["timestamps"], values, legend=k)
+            for i, (k, values) in enumerate(history["values"].items()):
+                timings_figure.line(
+                    history["timestamps"],
+                    values,
+                    legend=k,
+                    color=color_rotation[i % len(color_rotation)])
 
-            print("saving")
             bokeh.io.save(
                 timings_figure,
                 filename=pathlib.Path(path) / "timings.html",
@@ -64,7 +83,8 @@ class ClockReporter:
         mix_factor = 0
         plot_interval = 0
 
-        plot_timeout_start = time.time()
+        start_time = time.time()
+        plot_timeout_start = start_time
         while True:
             try:
                 data = rqueue.get(
@@ -76,14 +96,12 @@ class ClockReporter:
             else:
                 cmd = data["cmd"]
 
-            print(data)
-
             if cmd is None:
                 # Cycle
                 if time.time() - plot_timeout_start > plot_interval:
                     plot_timeout_start = time.time()
                     history_data = ClockReporter.create_plot(
-                        history_data, path, time.time(), timing_values, timing_counts)
+                        history_data, path, time.time() - start_time, timing_values, timing_counts)
                     timing_counts = {k: 0 for k in timing_counts.keys()}
             elif cmd == "exit":
                 break
@@ -103,7 +121,7 @@ class ClockReporter:
             else:
                 raise ValueError("Invalid command: {}".format(data))
 
-    def __init__(self, output_path, mix_factor=0.999, plot_interval=60):
+    def __init__(self, output_path, mix_factor=0.95, plot_interval=60):
         self.__output_path = pathlib.Path(output_path)
         self.__output_path.mkdir(exist_ok=True, parents=True)
         self.__output_path = self.__output_path.resolve()
