@@ -90,7 +90,7 @@ class ClockReporter:
 
             bokeh.io.save(
                 bokeh.layouts.column(timings_figure, counts_figure),
-                filename=pathlib.Path(path) / "timings.html",
+                filename=str(pathlib.Path(path) / "timings.html"),
                 title="Timings")
 
         return history
