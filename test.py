@@ -1,4 +1,3 @@
-import tempfile
 import pipetime
 import time
 

@@ -109,22 +109,29 @@ class ClockReporter:
         plot_timeout_start = start_time
         while True:
             try:
+                timeout = plot_interval - (time.time() - plot_timeout_start)
                 data = rqueue.get(
                     block=True,
-                    timeout=max(0.1, plot_interval * 0.5))
+                    timeout=max(0.1, timeout))
             except queue.Empty:
                 cmd = None
                 data = None
             else:
                 cmd = data["cmd"]
 
+            # Write report if time elapsed
+            if time.time() - plot_timeout_start > plot_interval:
+                plot_timeout_start = time.time()
+                history_data = ClockReporter.create_plot(
+                    history_data,
+                    path,
+                    time.time() - start_time,
+                    timing_values,
+                    timing_counts)
+                timing_counts = {k: 0 for k in timing_counts.keys()}
+
             if cmd is None:
-                # Cycle
-                if time.time() - plot_timeout_start > plot_interval:
-                    plot_timeout_start = time.time()
-                    history_data = ClockReporter.create_plot(
-                        history_data, path, time.time() - start_time, timing_values, timing_counts)
-                    timing_counts = {k: 0 for k in timing_counts.keys()}
+                pass # Default timeout passed
             elif cmd == "exit":
                 break
             elif cmd == "set":
