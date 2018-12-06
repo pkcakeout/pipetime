@@ -30,3 +30,18 @@ def test_value_updates(tmp_path):
     assert ".html" in [f.suffix.lower() for f in pipe_reporter.output_path.iterdir()]
     pipe_reporter.close()
 
+
+def test_saturate_input_channel(tmp_path):
+    pipe_reporter = pipetime.ClockReporter(tmp_path, plot_interval=0.1)
+
+    try:
+        start_time = time.time()
+        while time.time() - start_time < 1.0:
+            timetracker = pipe_reporter.track()
+            timetracker.time("step1")
+            timetracker.time("step2")
+
+            if time.time() - start_time > 0.2:
+                assert ".html" in [f.suffix.lower() for f in pipe_reporter.output_path.iterdir()]
+    finally:
+        pipe_reporter.close()
