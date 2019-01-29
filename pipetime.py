@@ -2,6 +2,7 @@ import pathlib
 import multiprocessing
 import queue
 import time
+
 from collections import OrderedDict
 
 import bokeh.plotting
