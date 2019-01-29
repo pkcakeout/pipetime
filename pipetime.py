@@ -48,7 +48,6 @@ class ClockReporter:
                 values.append(value)
                 yield (k, values)
 
-        print(timing_counts)
         history = {
             "timestamps": history["timestamps"] + [timestamp],
             "values": OrderedDict(
@@ -121,13 +120,13 @@ class ClockReporter:
 
             # Write report if time elapsed
             if time.time() - plot_timeout_start > plot_interval:
-                plot_timeout_start = time.time()
                 history_data = ClockReporter.create_plot(
                     history_data,
                     path,
                     time.time() - start_time,
                     timing_values,
                     timing_counts)
+                plot_timeout_start = time.time()
                 timing_counts = {k: 0 for k in timing_counts.keys()}
 
             if cmd is None:
@@ -158,7 +157,7 @@ class ClockReporter:
         self.__mix_factor = mix_factor
         self.__plot_interval = plot_interval
 
-        self.__processing_queue = multiprocessing.Queue()
+        self.__processing_queue = multiprocessing.Queue(1024)
         self.__subprocess = multiprocessing.Process(
             target=ClockReporter.__process_handler,
             args=(self.__processing_queue, str(self.__output_path)))
