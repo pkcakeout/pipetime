@@ -6,6 +6,7 @@ setup(
     version='1.0',
     author="Paul Konstantin Gerke",
     author_email="paul.gerke@radboudumc.nl",
+    py_modules=["pipetime"],
     requires=["bokeh (>=1.0.4)"],
     license="MIT",
 )
